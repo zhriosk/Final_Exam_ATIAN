@@ -1,0 +1,14 @@
+---
+- name: Install Java OpenJDK
+  hosts: all
+  become: true
+  tasks:
+    - name: Update cache apt
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+
+    - name: Install OpenJDK
+      package:
+        name: openjdk-11-jdk
+        state: present

@@ -1,0 +1,30 @@
+---
+- name: Fix Docker installation issues
+  hosts: all_servers
+  become: yes
+  tasks:
+    - name: Install pip3 on Ubuntu
+      apt:
+        name: python3-pip
+        state: present
+      when: ansible_distribution == "Ubuntu"
+
+
+    - name: Install pip3 on CentOS
+      dnf:
+        name: python3-pip
+        state: present
+      when: ansible_distribution == "CentOS"
+
+
+    - name: Install Docker SDK for Python
+      pip:
+        name: docker
+        state: present
+
+
+    - name: Ensure Docker service is running
+      service:
+        name: docker
+        state: started
+        enabled: yes

@@ -1,0 +1,180 @@
+---
+- name: Update all systems
+  hosts: all
+  become: true
+
+  pre_tasks:
+    - name: install updates (CentOS)
+      tags: always
+      dnf:
+        update_only: yes
+        update_cache: yes
+      when: ansible_distribution == "CentOS"
+
+    - name: install updates (Ubuntu)
+      tags: always
+      apt:
+        upgrade: dist
+        update_cache: yes
+      when: ansible_distribution == "Ubuntu"
+
+- name: Configure MOTD
+  hosts: all
+  become: true
+  vars_files:
+    - config.yaml
+  tasks:
+    - name: Set MOTD message
+      copy:
+        content: "{{ motd_message }}"
+        dest: /etc/motd
+
+- name: Install Apache and PHP
+  hosts: web_servers
+  become: true
+  tasks:
+    - name: install apache and php for Ubuntu Servers
+      tags: apache, apache2, ubuntu
+      apt:
+        name:
+          - apache2
+          - libapache2-mod-php
+        state: latest
+        update_cache: yes
+      when: ansible_distribution == "Ubuntu"
+
+    - name: install apache and php for CentOS servers
+      tags: apache, centos, httpd
+      dnf:
+        name:
+          - httpd
+          - php
+        state: latest
+      when: ansible_distribution == "CentOS"
+
+    - name: start httpd (CentOS)
+      tags: apache, centos, httpd
+      service:
+        name: httpd
+        state: started
+        enabled: true
+      when: ansible_distribution == "CentOS"
+
+    - name: start apache2 (Ubuntu)
+      tags: apache, ubuntu
+      service:
+        name: apache2
+        state: started
+        enabled: true
+      when: ansible_distribution == "Ubuntu"
+
+- name: Install MariaDB
+  hosts: db_servers
+  become: true
+  tasks:
+    - name: install mariadb package (CentOS)
+      tags: centos, db, mariadb
+      dnf:
+        name: mariadb-server
+        state: latest
+      when: ansible_distribution == "CentOS"
+
+    - name: install mariadb package (Ubuntu)
+      tags: db, mariadb, ubuntu
+      apt:
+        name: mariadb-server
+        state: latest
+      when: ansible_distribution == "Ubuntu"
+
+    - name: Mariadb - Restarting/Enabling
+      service:
+        name: mariadb
+        state: restarted
+        enabled: true
+
+- name: Install Samba
+  hosts: all
+  become: true
+  tasks:
+    - name: install samba package
+      tags: samba
+      package:
+        name: samba
+        state: latest
+
+- name: Install Monitoring Tool (htop)
+  hosts: all
+  become: true
+  tasks:
+
+    - name: enable EPEL repository
+      dnf:
+        name: epel-release
+        state: present
+      when: ansible_distribution == "CentOS"
+
+    - name: install htop (CentOS)
+      dnf:
+        name: htop
+        state: present
+      when: ansible_distribution == "CentOS"
+
+    - name: install htop (Ubuntu)
+      apt:
+        name: htop
+        state: present
+      when: ansible_distribution == "Ubuntu"
+
+- name: Install Java
+  hosts: all
+  become: true
+  tasks:
+    - name: Update cache apt
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+      when: ansible_distribution == "Ubuntu"
+
+    - name: Install OpenJDK
+      package:
+        name: "{{ 'openjdk-11-jdk' if ansible_distribution == 'Ubuntu' else 'java-11-openjdk' }}"
+        state: present
+
+- name: Install PostgreSQL Database
+  hosts: all
+  become: true
+  tasks:
+    - name: install postgresql (Ubuntu)
+      tags: db,postgresql,ubuntu
+      apt:
+        name: postgresql
+        state: present
+      when: ansible_distribution == "Ubuntu"
+
+    - name: install postgresql (CentOS)
+      tags: db,postgresql,centos
+      dnf:
+        name: postgresql-server
+        state: latest
+      when: ansible_distribution == "CentOS"
+
+    - name: Initialize PostgreSQL database (CentOS)
+      shell: postgresql-setup --initdb
+      when: ansible_distribution == "CentOS"
+
+    - name: start postgresql (Ubuntu)
+      tags: db,postgresql,ubuntu
+      service:
+        name: postgresql
+        state: started
+        enabled: true
+      when: ansible_distribution == "Ubuntu"
+
+    - name: start postgresql (CentOS)
+      tags: db,postgresql,centos
+      service:
+        name: postgresql
+        state: started
+        enabled: true
+      when: ansible_distribution == "CentOS"
+
